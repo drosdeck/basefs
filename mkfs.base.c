@@ -12,7 +12,8 @@
 #define unmark_zone(x) (clrbit(zone_map,(x)-get_first_zone()+1))
 #define unmark_inode(x) (clrbit(inode_map,(x)))
 #define mark_inode(x) (setbit(inode_map,(x)))
-
+#define zone_in_use(x) (isset(zone_map,(x)-get_first_zone()+1) != 0)
+static unsigned short good_blocks_table[MAX_GOOD_BLOCKS];
 
 static char root_block[BASE_BLOCK_SIZE];
 static char boot_block_buffer[512];
@@ -29,9 +30,39 @@ struct fs_control{
      int device_fd;
      unsigned long long fs_blocks;
      int fs_magic;
+     int fs_bad_blocks;
+     int fs_used_blocks;
      size_t fs_dirsize;
      unsigned long fs_inodes;
 };
+
+static int get_free_block(struct fs_control *flc)
+{
+    unsigned int blk;
+    unsigned int zones = Super.s_nzones;
+    unsigned int first_zone = get_first_zone();
+    if (flc->fs_used_blocks + 1 >= MAX_GOOD_BLOCKS)
+    {
+	printf("%s: too many bad blocks", flc->device_name);
+	exit(1);
+    }
+     if (flc->fs_used_blocks)
+     blk = good_blocks_table[flc->fs_used_blocks - 1] + 1;
+     else
+     blk = first_zone;
+     while (blk < zones && zone_in_use(blk))
+     blk++;
+    if (blk >= zones)
+    {
+     printf("%s: not enough good blocks", flc->device_name);
+      exit(0);
+    } 
+     good_blocks_table[flc->fs_used_blocks] = blk;
+     flc->fs_used_blocks++;
+      return blk;
+
+}	
+
 
 static void make_root_inode(struct fs_control *flc)
 {

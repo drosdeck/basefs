@@ -10,7 +10,7 @@ extern char *super_block_buffer;
 #define BASE_MAX_INODES     65535
 #define UPPER(size,n) ((size+((n)-1))/(n))
 #define BITS_PER_BLOCK (BASE_BLOCK_SIZE << 3)
-
+#define MAX_GOOD_BLOCKS 512
 #define BASE_INODES_PER_BLOCK ((BASE_BLOCK_SIZE)/(sizeof (struct base_inode)))
 
 #define BASE_ROOT_INO 1
