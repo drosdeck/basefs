@@ -1,6 +1,7 @@
 #ifndef BASE_H
 #define BASE_H
 #include <stdint.h>
+#include <time.h>
 
 extern char *super_block_buffer;
 #define Super (*(struct base_super_block *) super_block_buffer)
@@ -38,8 +39,20 @@ struct base_super_block {
 	uint16_t s_state;
         uint32_t s_zones;
 };
-
-
+  
+static inline int xusleep(useconds_t usec)
+{
+#ifdef HAVE_NANOSLEEP
+	struct timespec waittime = {
+		.tv_sec   =  usec / 1000000L,
+		.tv_nsec  = (usec % 1000000L) * 1000
+	};
+	return nanosleep(&waittime, NULL);
+#elif defined(HAVE_USLEEP)
+	return usleep(usec);
+#endif	
+//colocar um else	
+}
 static inline off_t first_zone_data(void)
 {
 	        return 2 + Super.s_imap_blocks + Super.s_zmap_blocks + UPPER(Super.s_ninodes, BASE_INODES_PER_BLOCK);

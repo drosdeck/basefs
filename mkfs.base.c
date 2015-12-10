@@ -9,10 +9,15 @@
 #include "base.h"
 #include "bitops.h"
 
+#define Inode (((struct base_inode *) inode_buffer) - 1)
 #define unmark_zone(x) (clrbit(zone_map,(x)-get_first_zone()+1))
 #define unmark_inode(x) (clrbit(inode_map,(x)))
 #define mark_inode(x) (setbit(inode_map,(x)))
 #define zone_in_use(x) (isset(zone_map,(x)-get_first_zone()+1) != 0)
+# define mkfs_minix_time(x) time(x) 
+//arrumar esse time
+
+
 static unsigned short good_blocks_table[MAX_GOOD_BLOCKS];
 
 static char root_block[BASE_BLOCK_SIZE];
@@ -35,6 +40,41 @@ struct fs_control{
      size_t fs_dirsize;
      unsigned long fs_inodes;
 };
+
+static inline int write_all(int fd, const void *buf, size_t count)
+{
+    while (count) 
+    {
+      ssize_t tmp;
+      errno = 0;
+      tmp = write(fd, buf, count);
+      if (tmp > 0) 
+      {
+	    count -= tmp;
+	    if (count)
+	    buf = (void *) ((char *) buf + tmp);
+        } else if (errno != EINTR && errno != EAGAIN)
+                return -1;
+        if (errno == EAGAIN)
+		xusleep(250000);
+    }
+   return 0;
+}	
+
+static void write_block(const struct fs_control *flc, int blk, char * buffer) {
+    if (blk * BASE_BLOCK_SIZE != lseek(flc->device_fd, blk * BASE_BLOCK_SIZE, SEEK_SET))
+     {	    
+      printf("%s: seek failed in write_block", flc->device_name);
+      exit(1);
+     }
+
+    if (write_all(flc->device_fd, buffer, BASE_BLOCK_SIZE))
+    {
+	printf("%s: write failed in write_block", flc->device_name);
+        exit(1); 
+    }
+}
+
 
 static int get_free_block(struct fs_control *flc)
 {
@@ -66,6 +106,7 @@ static int get_free_block(struct fs_control *flc)
 
 static void make_root_inode(struct fs_control *flc)
 {
+	struct base_inode * inode = &Inode[BASE_ROOT_INO];
    char *tmp = root_block;	
    *(uint16_t *) tmp = 1;
     strcpy(tmp + 2, ".");
@@ -76,7 +117,22 @@ static void make_root_inode(struct fs_control *flc)
     *(uint16_t *) tmp = 2;
     strcpy(tmp + 2, ".badblocks");
    mark_inode(BASE_ROOT_INO);
+   inode->i_zone[0] = get_free_block(flc);
+   inode->i_nlinks = 2;
+    inode->i_time = mkfs_minix_time(NULL);
+   if (flc->fs_bad_blocks)
+     inode->i_size = 3 * flc->fs_dirsize;
+   else {
+        root_block[2 * flc->fs_dirsize] = '\0';
+	root_block[2 * flc->fs_dirsize + 1] = '\0';
+	inode->i_size = 2 * flc->fs_dirsize;
+   }						           
 
+   inode->i_mode = S_IFDIR + 0755;
+   inode->i_uid = getuid();
+   if (inode->i_uid)
+   inode->i_gid = getgid();
+   write_block(flc, inode->i_zone[0],root_block);
 }
 
 
