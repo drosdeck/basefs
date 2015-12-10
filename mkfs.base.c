@@ -102,7 +102,11 @@ static int get_free_block(struct fs_control *flc)
       return blk;
 
 }	
+static void make_bad_inode(struct fs_control *flc)
+{
 
+
+}	
 
 static void make_root_inode(struct fs_control *flc)
 {
@@ -220,6 +224,8 @@ int main(int argc, char **argv)
 
 determine_device_blocks(&flc);
  setup_tables(&flc);
+  make_root_inode(&flc);
+  //make_bad_inode(&ctl);
 
 
 
