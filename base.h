@@ -13,7 +13,7 @@ extern char *super_block_buffer;
 #define BITS_PER_BLOCK (BASE_BLOCK_SIZE << 3)
 #define MAX_GOOD_BLOCKS 512
 #define BASE_INODES_PER_BLOCK ((BASE_BLOCK_SIZE)/(sizeof (struct base_inode)))
-
+#define BASE_BAD_INO 2
 #define BASE_ROOT_INO 1
 
 
@@ -53,6 +53,9 @@ static inline int xusleep(useconds_t usec)
 #endif	
 //colocar um else	
 }
+
+
+
 static inline off_t first_zone_data(void)
 {
 	        return 2 + Super.s_imap_blocks + Super.s_zmap_blocks + UPPER(Super.s_ninodes, BASE_INODES_PER_BLOCK);

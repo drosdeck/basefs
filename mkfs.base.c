@@ -101,10 +101,78 @@ static int get_free_block(struct fs_control *flc)
      flc->fs_used_blocks++;
       return blk;
 
-}	
+}
+static inline int next(unsigned long zone) {
+	unsigned long zones = Super.s_nzones;
+       unsigned long first_zone = get_first_zone();
+      if (!zone)
+      zone = first_zone-1;
+      while (++zone < zones)
+      if (zone_in_use(zone))
+      return zone;
+     return 0;
+}
+
+
+
 static void make_bad_inode(struct fs_control *flc)
 {
+    struct base_inode * inode = &Inode[BASE_BAD_INO];
+    int i,j,zone;
+    int ind=0,dind=0;
+    unsigned short ind_block[BASE_BLOCK_SIZE>>1];
+    unsigned short dind_block[BASE_BLOCK_SIZE>>1];
+#define NEXT_BAD (zone = next(zone))
+    if (!flc->fs_bad_blocks)
+	    return;
+     mark_inode(BASE_BAD_INO);
+    inode->i_nlinks = 1;
+    inode->i_time = mkfs_minix_time(NULL);
+    inode->i_mode = S_IFREG + 0000;
+    inode->i_size = flc->fs_bad_blocks * BASE_BLOCK_SIZE; 
+    zone = next(0);
+    for (i=0 ; i<7 ; i++) 
+    {
+     inode->i_zone[i] = zone;
+      if (!NEXT_BAD)
+	      goto end_bad;
+    }
 
+    inode->i_zone[7] = ind = get_free_block(flc);
+    memset(ind_block,0,BASE_BLOCK_SIZE);
+    for (i=0 ; i<512 ; i++)
+    {
+      ind_block[i] = zone;
+      if (!NEXT_BAD)
+      goto end_bad;
+    }
+
+    inode->i_zone[8] = dind = get_free_block(flc);
+     memset(dind_block,0,BASE_BLOCK_SIZE);
+    for (i=0 ; i<512 ; i++) 
+    {
+       write_block(flc, ind,(char *) ind_block);
+       dind_block[i] = ind = get_free_block(flc);
+       memset(ind_block,0,BASE_BLOCK_SIZE);
+       for (j=0 ; j<512 ; j++) 
+       {
+           ind_block[j] = zone;
+	   if (!NEXT_BAD)
+	    goto end_bad;
+    																                    }
+
+}
+
+  printf("%s: too many bad blocks", flc->device_name); // colocar exit abaixo    
+    
+
+
+
+end_bad:
+    if (ind)
+	    write_block(flc, ind, (char *) ind_block);
+     if (dind)
+	     write_block(flc, dind, (char *) dind_block);
 
 }	
 
@@ -225,8 +293,9 @@ int main(int argc, char **argv)
 determine_device_blocks(&flc);
  setup_tables(&flc);
   make_root_inode(&flc);
-  //make_bad_inode(&ctl);
-
+  make_bad_inode(&flc);
+ //mark_good_blocks(&ctl);
+ //
 
 
 
