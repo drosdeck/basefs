@@ -13,6 +13,7 @@
 #define unmark_zone(x) (clrbit(zone_map,(x)-get_first_zone()+1))
 #define unmark_inode(x) (clrbit(inode_map,(x)))
 #define mark_inode(x) (setbit(inode_map,(x)))
+#define mark_zone(x) (setbit(zone_map,(x)-get_first_zone()+1))
 #define zone_in_use(x) (isset(zone_map,(x)-get_first_zone()+1) != 0)
 # define mkfs_minix_time(x) time(x) 
 //arrumar esse time
@@ -271,6 +272,11 @@ static void determine_device_blocks(struct fs_control *flc)
     ioctl(flc->device_fd, BLKGETSIZE64,flc->fs_blocks); // TESTAR TAMANHO DO FLC->FS_BLOCKS
 
 }	
+static void mark_good_blocks(const struct fs_control *ctl) {
+	int blk;
+        for (blk=0 ; blk < ctl->fs_used_blocks ; blk++)
+	mark_zone(good_blocks_table[blk]);
+}
 
 
 int main(int argc, char **argv)
@@ -294,7 +300,7 @@ determine_device_blocks(&flc);
  setup_tables(&flc);
   make_root_inode(&flc);
   make_bad_inode(&flc);
- //mark_good_blocks(&ctl);
+ mark_good_blocks(&flc);
  //
 
 
